@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+'Final Task: Game 2048'
+_author_="Tim Lee"
+
+import numpy,random,pygame,sys
+from pygame.locals import *
+
+#初始参数设置
+block_a=110 #方块长度为110
+block_s=10 #方块之间的间隔为10
+screen_w=4*block_a+5*block_s
+screen_h=5*block_a+5*block_s
+screen_size=(screen_w,screen_h)
+Title_Rect = pygame.Rect(0,0,screen_w,110)
+block_colors = {
+        0:(150,150,150),
+        2:(255,255,255),
+        4:(255,255,128),
+        8:(255,255,0),
+        16:(255,220,128),
+        32:(255,220,0),
+        64:(255,190,0),
+        128:(255,160,0),
+        256:(255,130,0),
+        512:(255,100,0),
+        1024:(255,70,0),
+        2048:(255,40,0)}
+
+#定义画出包含数字方块的函数
+def drawBlock(screen,row,column,color,blocknum):
+	font = pygame.font.SysFont('stxingkai',80)
+	w = column*block_a+(column+1)*block_s
+	h = row*block_a+(row+1)*block_s+110
+	pygame.draw.rect(screen,color,(w,h,110,110))
+	if blocknum != 0:
+		fw,fh = font.size(str(int(blocknum)))
+		screen.blit(font.render(str(int(blocknum)),True,(0,0,0)),(w+(110-fw)/2,h+(110-fh)/2)) 
+        
+def drawSurface(screen,mtx,scr):
+	pygame.draw.rect(screen,(255,255,255),Title_Rect)              #第一个参数是屏幕，第二个参数颜色，第三个参数rect大小，第四个默认参数
+	font1 = pygame.font.SysFont('simsun',48)
+	font2 = pygame.font.SysFont(None,32)
+	screen.blit(font1.render('Score:',True,(255,127,0)),(20,25))     #font.render第一个参数是文本内容，第二个参数是否抗锯齿，第三个参数字体颜色
+	screen.blit(font1.render('%s' % scr,True,(255,127,0)),(170,25))
+	screen.blit(font2.render('up',True,(255,127,0)),(360,20))
+	screen.blit(font2.render('left  down  right',True,(255,127,0)),(300,50))
+	a,b = mtx.shape
+	for i in range(a):
+		for j in range(b):
+			drawBlock(screen,i,j,block_colors[mtx[i][j]],mtx[i][j])
+
+def init(): #游戏初始化阶段，创建4×4的全为0的矩阵
+    mtx=numpy.zeros((4,4)) 
+    scr=0
+    return mtx,scr
+        
+def add_num(mtx): #向矩阵中随机加入数字
+    a=random.random() #先确认数字，通过random函数找一个[0,1)之间的随机数，使50%生成2,50%生成4
+    if 0<=a<0.5:
+        num=2
+    else:
+        num=4
+
+    x=random.randint(0,3);y=random.randint(0,3) #确认加数的坐标，不在有数字的地方加数字
+    while mtx[x,y] != 0:
+        x=random.randint(0,3);y=random.randint(0,3)
+    else:
+        mtx[x,y]=num
+    return mtx
+    
+def move(mtx,scr,drct): #使矩阵移动,并在移动过程中加分
+              
+    assert(drct=='l' or drct=='r' or drct=='u' or drct=='d')
+    if drct=='l':
+        newmtx=mtx
+    elif drct=='r':
+        newmtx=mtx[:,::-1]
+    elif drct=='u':
+        newmtx=mtx.T
+    elif drct=='d':
+        new_mtx=mtx.T
+        newmtx=new_mtx[:,::-1]            
+        
+    #移动
+        
+    i=0
+    while i<4:
+        line=list(newmtx[i])
+        
+        #去零
+        j=len(line)
+        for number in line:
+            if number > 0:
+                j-=1        
+        k=0
+        while k<j:
+            line.remove(0)
+            k+=1
+
+        
+        if len(line)==0:
+            newline=[0,0,0,0] 
+        
+        elif len(line)==1:
+            newline=[line[0],0,0,0]
+        elif len(line)==2:
+            if line[0]==line[1]:
+                newline=[(line[0]*2),0,0,0]
+                scr+=newline[0] #加分
+            else:
+                newline=[line[0],line[1],0,0]
+        
+        elif len(line)==3:
+            if line[0]==line[1]:
+                newline=[(line[0]*2),line[2],0,0]
+                scr+=newline[0] #加分
+                
+            elif line[1]==line[2]:
+                newline=[line[0],(line[1]*2),0,0]
+                scr+=newline[1] #加分
+            else:
+                newline=[line[0],line[1],line[2],0]
+        
+        elif len(line)==4:
+            if line[0]==line[1]:
+                if line[2]==line[3]:
+                    newline=[(line[0]*2),(line[2]*2),0,0]
+                    scr+=(newline[0]+newline[1]) #加分
+                else:
+                    newline=[(line[0]*2),line[2],line[3],0]
+                    scr+=newline[0] #加分
+            elif line[1]==line[2]:
+                newline=[line[0],(line[1]*2),line[3],0]
+                scr+=newline[1] #加分
+            elif line[2]==line[3]:
+                newline=[line[0],line[1],(line[2]*2),0]
+                scr+=newline[2] #加分
+            else:
+                newline=line
+        
+        newmtx[i]=newline
+        
+        i+=1
+
+        #方向转回,并返回值
+    
+    if drct=='l':
+        mtx_l=newmtx
+        return mtx_l,scr
+    elif drct=='r':
+        mtx_r=newmtx[:,::-1]
+        return mtx_r,scr
+    elif drct=='u':
+        mtx_u=newmtx.T
+        return mtx_u,scr
+    elif drct=='d':
+        new_mtx=newmtx[:,::-1]
+        mtx_d=new_mtx.T
+        return mtx_d,scr
+
+        
+def judge_win(mtx): #判断游戏是否取胜，即达到2048
+    judge_list=[]
+    for x in mtx:
+        for y in x:
+            judge_list+=[y]
+    judge_list.sort  
+    if judge_list[0]==2048:
+        return True
+    else:
+        return False     
+    
+def game_input():#重设input函数
+    if event.type==KEYDOWN:
+        if event.type==K_LEFT:
+            keyvalue='l'
+        if event.tpye==K_RIGHT:
+            keyvalue='r'
+        if event.type==K_UP:
+            keyvalue='u'
+        if event.type==K_DOWN:
+            keyvalue='d'
+        if event.type==K_ESCAPE:
+            keyvalue='esc'
+        if event.type==K_SPACE:
+            keyvalue=='spc'
+    return keyvalue
+
+def judge_lost(mtx):
+    testmtx = mtx.copy()
+    a=4;b=4
+    if (testmtx==numpy.zeros((4,4))).any():
+        return False
+    else:
+        for i in range(a):
+            for j in range(b-1):
+                if testmtx[i][j] == testmtx[i][j+1]:     
+                    return False
+        for i in range(b):
+            for j in range(a-1):
+                if testmtx[j][i] == testmtx[j+1][i]:
+                    return False
+        return True
+    
+
+#重设main函数
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode(screen_size,0,32)
+    mtx,scr=init()
