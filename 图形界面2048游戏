@@ -1,0 +1,258 @@
+import numpy,random,warnings,sys,pygame
+from pygame.locals import*
+
+Size = 4                                          #4*4行列
+Block_WH = 110                                    #每个块的长度宽度
+BLock_Space = 10                                  #两个块之间的间隙
+Block_Size = Block_WH*Size+(Size+1)*BLock_Space
+Screen_Size = (Block_Size,Block_Size+110)
+Title_Rect = pygame.Rect(0,0,Block_Size,110)      #设置标题矩形的大小
+
+Block_Color = {
+        0:(150,150,150),
+        2:(255,255,255),
+        4:(255,255,128),
+        8:(255,255,0),
+        16:(255,220,128),
+        32:(255,220,0),
+        64:(255,190,0),
+        128:(255,160,0),
+        256:(255,130,0),
+        512:(255,100,0),
+        1024:(255,70,0),
+        2048:(255,40,0),
+        4096:(255,10,0),
+}                                            
+
+def init(): #游戏初始化阶段，创建4×4的全为0的矩阵
+    mtx=numpy.zeros((4,4)) 
+    scr=0
+    return mtx,scr
+
+def add_num(mtx):     #向矩阵中随机加入数字
+    a=random.random() #先确认数字，通过random函数找一个[0,1)之间的随机数，使50%生成2,50%生成4
+    if 0<=a<0.5:
+        num=2
+    else:
+        num=4
+        
+    x=random.randint(0,3);y=random.randint(0,3) #确认加数的坐标，不在有数字的地方加数字
+    while mtx[x,y] != 0:
+        x=random.randint(0,3);y=random.randint(0,3)
+    else:
+        mtx[x,y]=num
+    return mtx
+
+def keyDownPressed(keyvalue):
+		if keyvalue == K_LEFT:
+			return 'l'
+		elif keyvalue == K_RIGHT:
+			return 'r'
+		elif keyvalue == K_UP:
+			return 'u'
+		elif keyvalue == K_DOWN:
+			return 'd'
+
+def move(mtx,scr,drct): #使矩阵移动,并在移动过程中加分
+
+    assert(drct=='l' or drct=='r' or drct=='u' or drct=='d')
+    if drct=='l':
+        newmtx=mtx
+    elif drct=='r':
+        newmtx=mtx[:,::-1]
+    elif drct=='u':
+        newmtx=mtx.T
+    elif drct=='d':
+        new_mtx=mtx.T
+        newmtx=new_mtx[:,::-1]            
+
+    #移动
+
+    i=0
+    while i<4:
+        line=list(newmtx[i])
+
+        #去零
+        j=len(line)
+        for number in line:
+            if number > 0:
+                j-=1        
+        k=0
+        while k<j:
+            line.remove(0)
+            k+=1
+
+
+        if len(line)==0:
+            newline=[0,0,0,0] 
+
+        elif len(line)==1:
+            newline=[line[0],0,0,0]
+        elif len(line)==2:
+            if line[0]==line[1]:
+                newline=[(line[0]*2),0,0,0]
+                scr+=newline[0] #加分
+            else:
+                newline=[line[0],line[1],0,0]
+
+        elif len(line)==3:
+            if line[0]==line[1]:
+                newline=[(line[0]*2),line[2],0,0]
+                scr+=newline[0] #加分
+
+            elif line[1]==line[2]:
+                newline=[line[0],(line[1]*2),0,0]
+                scr+=newline[1] #加分
+            else:
+                newline=[line[0],line[1],line[2],0]
+
+        elif len(line)==4:
+            if line[0]==line[1]:
+                if line[2]==line[3]:
+                    newline=[(line[0]*2),(line[2]*2),0,0]
+                    scr+=(newline[0]+newline[1]) #加分
+                else:
+                    newline=[(line[0]*2),line[2],line[3],0]
+                    scr+=newline[0] #加分
+            elif line[1]==line[2]:
+                newline=[line[0],(line[1]*2),line[3],0]
+                scr+=newline[1] #加分
+            elif line[2]==line[3]:
+                newline=[line[0],line[1],(line[2]*2),0]
+                scr+=newline[2] #加分
+            else:
+                newline=line
+
+        newmtx[i]=newline
+
+        i+=1
+
+        #方向转回,并返回值
+    if drct=='l':
+        mtx_l=newmtx
+        return mtx_l,scr
+    elif drct=='r':
+        mtx_r=newmtx[:,::-1]
+        return mtx_r,scr
+    elif drct=='u':
+        mtx_u=newmtx.T
+        return mtx_u,scr
+    elif drct=='d':
+        new_mtx=newmtx[:,::-1]
+        mtx_d=new_mtx.T
+        return mtx_d,scr
+
+'''
+def judge_win(mtx): #判断游戏是否取胜，即达到2048
+    judge_list=[]
+    for x in mtx:
+        for y in x:
+            judge_list+=[y]
+    judge_list.sort  
+    if judge_list[0]==2048:
+        return True
+    else:
+        return False   ''' 
+
+def judge_win(mtx):
+    num=0
+    for x in mtx:
+        for y in x:
+            if y==2048:
+                num=1
+    if num==0:
+        return False
+    if num==1:
+        return True 
+    
+def game_input():
+    drct=input()
+    while (drct!='l' and drct!='r' and drct!='u' and drct!='d' ):
+        if drct=='exit':
+            break
+        else:
+            print('Wrong Direction! Please Input Again!')
+            drct=input()
+    return drct
+
+def judge_lost(mtx):
+    testmtx = mtx.copy()
+    a=4;b=4
+    if (testmtx==numpy.zeros((4,4))).any():
+        return False
+    else:
+        for i in range(a):
+            for j in range(b-1):
+                if testmtx[i][j] == testmtx[i][j+1]:     
+                    return False
+        for i in range(b):
+            for j in range(a-1):
+                if testmtx[j][i] == testmtx[j+1][i]:
+                    return False
+        return True
+    
+def drawSurface(screen,matrix,score):
+		pygame.draw.rect(screen,(255,255,255),Title_Rect)              #第一个参数是屏幕，第二个参数颜色，第三个参数rect大小，第四个默认参数
+		font1 = pygame.font.SysFont('simsun',48)
+		font2 = pygame.font.SysFont(None,32)
+		screen.blit(font1.render('Score:',True,(255,127,0)),(20,25))     #font.render第一个参数是文本内容，第二个参数是否抗锯齿，第三个参数字体颜色
+		screen.blit(font1.render('%s' % score,True,(255,127,0)),(170,25))
+		screen.blit(font2.render('up',True,(255,127,0)),(360,20))
+		screen.blit(font2.render('left  down  right',True,(255,127,0)),(300,50))
+		a,b = matrix.shape
+		for i in range(a):
+			for j in range(b):
+				drawBlock(screen,i,j,Block_Color[matrix[i][j]],matrix[i][j])
+
+def drawBlock(screen,row,column,color,blocknum):
+		font = pygame.font.SysFont('stxingkai',80)
+		w = column*Block_WH+(column+1)*BLock_Space
+		h = row*Block_WH+(row+1)*BLock_Space+110
+		pygame.draw.rect(screen,color,(w,h,110,110))
+		if blocknum != 0:
+			fw,fh = font.size(str(int(blocknum)))
+			screen.blit(font.render(str(int(blocknum)),True,(0,0,0)),(w+(110-fw)/2,h+(110-fh)/2))
+def main():
+    #游戏初始化
+    mtx,scr=init()
+    add_num(mtx)
+    #判断游戏是否获胜
+    pygame.init()  
+    screen = pygame.display.set_mode(Screen_Size,0,32)          
+    while judge_win(mtx)==False:
+        while True:
+            drawSurface(screen,mtx,scr)
+            pygame.display.update()
+            #print(mtx)
+            #print("current score: %s" % scr)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit(0)
+                elif event.type == pygame.KEYDOWN:
+                    drct = keyDownPressed(event.key) 
+                    mtx_before=[]
+                    for i in range(0,4):
+                        for j in range(0,4):
+                            mtx_before+=[mtx[i,j]]
+                    #移动并加分  需要判断move是否有效，有效后才能再加数字(缺少判断move有效的函数或方式)        
+                    mtx,scr=move(mtx,scr,drct)
+                    #制作mtx_bafore
+                    mtx_after=[]
+                    for i in range(0,4):
+                        for j in range(0,4):
+                            mtx_after+=[mtx[i,j]]
+                    if mtx_before==mtx_after:
+                        continue
+                    else:             
+                        add_num(mtx)
+                    if judge_lost(mtx)==True:
+                        print(mtx)
+                        print("You Lose!")
+                        print("current score: %s" % scr)            
+                        break
+                    else:
+                        continue
+           
+if __name__=='__main__':
+    main()
